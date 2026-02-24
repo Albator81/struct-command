@@ -14,6 +14,10 @@ cat > ~/.local/bin/struct << 'EOF'
 SCRIPT_FILE="${HOME}/.struct_exclude"
 touch "$SCRIPT_FILE"
 
+# Ensure default excludes
+
+grep -qxF ".git/" "$SCRIPT_FILE" || echo ".git/" >> "$SCRIPT_FILE"
+
 EXCLUDE=() FILTERS=() EDIT=0 SHOW_HELP=0 SHOW_EXCLUDES=0 SAVE_EXCLUDE=0 ADD_EXCLUDE=() LIST_ONLY=0 HEADER_FORMAT="# $file"
 
 # Parse command-line arguments
@@ -62,6 +66,12 @@ exit 1
 esac
 done
 
+# Warn user if header format does not include $file
+
+if [[ "$HEADER_FORMAT" != *'$file'* ]]; then
+echo "Warning: header format does not include $file, filename will not appear" >&2
+fi
+
 # Show help text
 
 if [[ $SHOW_HELP -eq 1 ]]; then
@@ -74,7 +84,7 @@ struct -edit                Edit the struct exclude file
 struct -e <path|file>      Temporarily exclude path or file
 struct --save-exclude       Permanently save the added excludes
 struct --show-excludes      Show saved excludes
-struct -f          Only list files matching pattern (supports multiple -f options, e.g., *.py)
+struct -f <pattern>         Only list files matching pattern (supports multiple -f options, e.g., *.py) (supports multiple -f options, e.g., *.py)
 struct -l, --list-only      Only list matching files without displaying contents
 struct --header     Customize file header (use $file to include filename, e.g., "# $file")
 struct -h, --help           Show this help
@@ -136,10 +146,13 @@ fi
 
 for pattern in "${FILTERS[@]}"; do
 if [[ $LIST_ONLY -eq 1 ]]; then
-find . -type f -name "$pattern" "${FIND_EXCLUDE[@]}" -print0 | xargs -0 -I{} echo {}
+find . -type f -name "$pattern" "${FIND_EXCLUDE[@]}" -print0 | while IFS= read -r -d '' file; do
+echo "$file"
+done
 else
 find . -type f -name "$pattern" "${FIND_EXCLUDE[@]}" -print0 | while IFS= read -r -d '' file; do
-eval echo "$HEADER_FORMAT"
+header="${HEADER_FORMAT//$file/$file}"
+echo "$header"
 cat "$file"
 done
 fi
@@ -153,7 +166,6 @@ chmod +x ~/.local/bin/struct
 # 4️⃣ Add alias and PATH to .bashrc if not already present
 
 grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-grep -qxF "alias struct='struct'" ~/.bashrc || echo "alias struct='struct'" >> ~/.bashrc
 
 # 5️⃣ Reload .bashrc
 
