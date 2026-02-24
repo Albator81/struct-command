@@ -87,11 +87,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Warn user if header format does not include placeholder
-if [[ "$HEADER_FORMAT" != *'__FILE__'* ]]; then
-  echo "Warning: header format does not include __FILE__, filename will not appear" >&2
-fi
-
 # Show help text
 if [[ $SHOW_HELP -eq 1 ]]; then
 cat <<HELP
@@ -99,14 +94,14 @@ struct - Show project structure with content
 
 Usage:
 struct                     Show all files and content (excluding saved excludes)
-struct -edit                Edit the struct exclude file
+struct -edit               Edit the struct exclude file
 struct -e <path|file>      Temporarily exclude path or file
-struct --save-exclude       Permanently save the added excludes
-struct --show-excludes      Show saved excludes
-struct -f <pattern>         Only list files matching pattern (supports multiple -f options, e.g., *.py)
-struct -l, --list-only      Only list matching files without displaying contents
-struct --header <format>    Customize file header (use __FILE__ to include filename, e.g., "# __FILE__")
-struct -h, --help           Show this help
+struct --save-exclude      Permanently save the added excludes
+struct --show-excludes     Show saved excludes
+struct -f <pattern>        Only list files matching pattern (supports multiple -f options, e.g., *.py)
+struct -l, --list-only     Only list matching files without displaying contents
+struct --header <format>   Customize file header (use __FILE__ to include filename)
+struct -h, --help          Show this help
 HELP
 exit 0
 fi
@@ -154,7 +149,7 @@ if [[ ${#FILTERS[@]} -eq 0 ]]; then
   FILTERS=("*")
 fi
 
-# Execute find command safely handling filenames with spaces
+# Execute find command
 for pattern in "${FILTERS[@]}"; do
   if [[ $LIST_ONLY -eq 1 ]]; then
     find . -type f -name "$pattern" "${FIND_EXCLUDE[@]}" -print0 | while IFS= read -r -d '' file; do
@@ -163,8 +158,12 @@ for pattern in "${FILTERS[@]}"; do
   else
     find . -type f -name "$pattern" "${FIND_EXCLUDE[@]}" -print0 | while IFS= read -r -d '' file; do
       header="${HEADER_FORMAT//__FILE__/$file}"
-      printf "%s\n" "$header"
+      
+      # FIX: Added a leading newline before the header for readability
+      # and a trailing newline after cat to handle files missing EOF newlines.
+      printf "\n%s\n" "$header"
       cat "$file"
+      echo "" 
     done
   fi
 done
